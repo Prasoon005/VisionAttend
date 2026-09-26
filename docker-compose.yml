@@ -1,0 +1,104 @@
+# VisionAttend local stack.
+#
+#   Infrastructure only (recommended for day-to-day development):
+#     docker compose up -d
+#   Full stack in containers:
+#     docker compose --profile full up -d --build
+#
+# No secrets live in this file. `${VAR:?}` makes Compose refuse to start
+# when a required variable is missing from `.env`.
+
+name: visionattend
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # Bound to localhost only: never exposed to the local network.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Password comes from the environment inside the container, so it is not
+    # baked into this file. AOF persistence keeps queued events across restarts.
+    command: ['sh', '-c', 'exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes']
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  cv-service:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/cv-service.Dockerfile
+    restart: unless-stopped
+    environment:
+      CV_SERVICE_TOKEN: ${CV_SERVICE_TOKEN:?set CV_SERVICE_TOKEN in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # Not published to the host: only the API talks to it, over the
+    # internal Compose network.
+    expose:
+      - '8000'
+
+  api:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      cv-service:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      API_PORT: 4000
+      CORS_ORIGINS: http://localhost:8080
+      # Same credentials as .env, but addressed by Compose service name.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      CV_SERVICE_URL: http://cv-service:8000
+      CV_SERVICE_TOKEN: ${CV_SERVICE_TOKEN}
+    ports:
+      - '127.0.0.1:4000:4000'
+
+  web:
+    profiles: [full]
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '127.0.0.1:8080:8080'
+
+volumes:
+  postgres-data:
+  redis-data:

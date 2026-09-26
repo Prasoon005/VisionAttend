@@ -1,0 +1,12 @@
+# Only JS/TS packages belong to the pnpm workspace.
+# apps/cv-service is a Python project and is managed with its own virtualenv.
+packages:
+  - apps/api
+  - apps/web
+  - packages/*
+
+# Native/postinstall scripts that pnpm is allowed to run.
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
+  - esbuild

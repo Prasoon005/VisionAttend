@@ -1,0 +1,478 @@
+// VisionAttend database schema.
+// Design notes live in docs/database.md. Key conventions:
+//  - Every tenant-owned table carries `organizationId`.
+//  - Tenant consistency is enforced by composite foreign keys
+//    (organizationId, id), so a row can never point at another tenant's row.
+//  - Timestamps are UTC (`timestamptz`); calendar days use `date` and are
+//    computed in the organization's timezone.
+//  - Check constraints Prisma cannot express live in the migration SQL.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  ORG_ADMIN
+  EMPLOYEE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+}
+
+enum CameraDirection {
+  ENTRY
+  EXIT
+  BOTH
+}
+
+enum CameraSourceType {
+  RTSP
+  WEBCAM
+  KIOSK
+}
+
+enum CameraStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+}
+
+enum EnrollmentStatus {
+  NOT_ENROLLED
+  ENROLLED
+  NEEDS_REENROLL
+}
+
+enum AttendanceEventType {
+  ENTRY
+  EXIT
+}
+
+enum AttendanceEventSource {
+  CAMERA
+  KIOSK
+  MANUAL
+  CORRECTION
+}
+
+enum AttendanceEventFlag {
+  CLOCK_SKEW
+  LOW_CONFIDENCE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+  ON_LEAVE
+  HOLIDAY
+  WEEKLY_OFF
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  EARNED
+  UNPAID
+  OTHER
+}
+
+// ─────────────────────── Tenancy & identity ───────────────────────
+
+model Organization {
+  id        String             @id @default(uuid(7)) @db.Uuid
+  name      String
+  slug      String             @unique
+  /// IANA timezone, e.g. "Asia/Kolkata". Drives work-date calculation.
+  timezone  String             @default("UTC")
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+
+  users                 User[]
+  departments           Department[]
+  shifts                Shift[]
+  holidays              Holiday[]
+  employees             Employee[]
+  cameras               Camera[]
+  biometricProfiles     BiometricProfile[]
+  faceTemplates         FaceTemplate[]
+  attendanceEvents      AttendanceEvent[]
+  attendanceRecords     AttendanceRecord[]
+  attendanceCorrections AttendanceCorrection[]
+  leaveRequests         LeaveRequest[]
+}
+
+/// A login identity. Not every employee has one; not every user is an employee.
+model User {
+  id               String     @id @default(uuid(7)) @db.Uuid
+  /// NULL only for SUPER_ADMIN (enforced by a CHECK constraint).
+  organizationId   String?    @db.Uuid
+  /// Stored lower-cased; globally unique so login needs no org slug.
+  email            String     @unique
+  /// argon2id hash. Never returned by the API.
+  passwordHash     String
+  role             Role
+  status           UserStatus @default(ACTIVE)
+  failedLoginCount Int        @default(0)
+  lockedUntil      DateTime?  @db.Timestamptz(3)
+  lastLoginAt      DateTime?  @db.Timestamptz(3)
+  createdAt        DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @db.Timestamptz(3)
+
+  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee      Employee?
+  refreshTokens RefreshToken[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId])
+}
+
+/// Opaque refresh tokens, stored only as SHA-256 hashes.
+/// Rotated on every use; reuse of a rotated token revokes the whole family.
+model RefreshToken {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  familyId     String    @db.Uuid
+  expiresAt    DateTime  @db.Timestamptz(3)
+  revokedAt    DateTime? @db.Timestamptz(3)
+  replacedById String?   @db.Uuid
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+// ───────────────────────── Organization setup ─────────────────────────
+
+model Department {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  code           String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employees    Employee[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, name])
+}
+
+/// Times are minutes after local midnight (0-1439). If endMinute <= startMinute
+/// the shift crosses midnight and belongs to the work date it starts on.
+model Shift {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  startMinute    Int
+  endMinute      Int
+  /// Minutes after start before a check-in counts as late.
+  graceMinutes   Int      @default(0)
+  /// Worked minutes needed for HALF_DAY / full PRESENT.
+  halfDayMinutes Int
+  fullDayMinutes Int
+  /// ISO weekdays (1 = Monday ... 7 = Sunday) on which the shift is worked.
+  workDays       Int[]    @default([1, 2, 3, 4, 5])
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employees         Employee[]
+  attendanceRecords AttendanceRecord[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, name])
+}
+
+model Holiday {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  date           DateTime @db.Date
+  name           String
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, date])
+}
+
+/// HR record. Never hard-deleted (status TERMINATED) so history stays intact.
+model Employee {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  organizationId String         @db.Uuid
+  employeeCode   String
+  firstName      String
+  lastName       String
+  workEmail      String?
+  departmentId   String?        @db.Uuid
+  defaultShiftId String?        @db.Uuid
+  userId         String?        @db.Uuid
+  status         EmployeeStatus @default(ACTIVE)
+  joinedOn       DateTime       @db.Date
+  terminatedOn   DateTime?      @db.Date
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  department   Department?  @relation(fields: [organizationId, departmentId], references: [organizationId, id], onDelete: Restrict)
+  defaultShift Shift?       @relation(fields: [organizationId, defaultShiftId], references: [organizationId, id], onDelete: Restrict)
+  user         User?        @relation(fields: [organizationId, userId], references: [organizationId, id], onDelete: Restrict)
+
+  biometricProfile      BiometricProfile?
+  attendanceEvents      AttendanceEvent[]
+  attendanceRecords     AttendanceRecord[]
+  attendanceCorrections AttendanceCorrection[]
+  leaveRequests         LeaveRequest[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, employeeCode])
+  /// A login belongs to at most one employee record.
+  @@unique([organizationId, userId])
+  @@index([organizationId, status])
+  @@index([organizationId, departmentId])
+}
+
+model Camera {
+  id                  String           @id @default(uuid(7)) @db.Uuid
+  organizationId      String           @db.Uuid
+  name                String
+  location            String?
+  direction           CameraDirection
+  sourceType          CameraSourceType
+  /// RTSP URLs usually embed credentials, so they are encrypted at rest.
+  streamUrlCiphertext Bytes?
+  /// Administrative intent. Online/offline is derived from lastHeartbeatAt.
+  status              CameraStatus     @default(ACTIVE)
+  lastHeartbeatAt     DateTime?        @db.Timestamptz(3)
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime         @updatedAt @db.Timestamptz(3)
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  attendanceEvents AttendanceEvent[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, name])
+}
+
+// ───────────────────────────── Biometrics ─────────────────────────────
+
+/// Consent and enrollment lifecycle, kept apart from the template bytes so
+/// the UI can show status without ever touching biometric data.
+model BiometricProfile {
+  id               String           @id @default(uuid(7)) @db.Uuid
+  organizationId   String           @db.Uuid
+  employeeId       String           @db.Uuid
+  consentStatus    ConsentStatus?
+  /// Version of the privacy notice the employee agreed to.
+  consentVersion   String?
+  consentGivenAt   DateTime?        @db.Timestamptz(3)
+  consentRevokedAt DateTime?        @db.Timestamptz(3)
+  enrollmentStatus EnrollmentStatus @default(NOT_ENROLLED)
+  enrolledAt       DateTime?        @db.Timestamptz(3)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee      Employee       @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Cascade)
+  faceTemplates FaceTemplate[]
+
+  @@unique([organizationId, id])
+  /// One biometric profile per employee.
+  @@unique([organizationId, employeeId])
+}
+
+/// Encrypted face embedding. Encrypted/decrypted only inside the CV service
+/// (AES-256-GCM); the API and database only ever see ciphertext.
+model FaceTemplate {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @db.Uuid
+  profileId      String   @db.Uuid
+  /// IV + ciphertext + auth tag.
+  ciphertext     Bytes
+  keyVersion     Int
+  modelName      String
+  /// Embeddings from different model versions are not comparable.
+  modelVersion   String
+  qualityScore   Float    @db.Real
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  profile      BiometricProfile @relation(fields: [organizationId, profileId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([profileId])
+}
+
+// ───────────────────────────── Attendance ─────────────────────────────
+
+/// Append-only log of what was observed. Never updated except to void it.
+/// CHECK_IN / CHECK_OUT are interpretations derived by the processor.
+model AttendanceEvent {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  organizationId  String                @db.Uuid
+  employeeId      String                @db.Uuid
+  type            AttendanceEventType
+  source          AttendanceEventSource
+  cameraId        String?               @db.Uuid
+  /// Recognition similarity (0-1); NULL for non-camera sources.
+  confidence      Float?                @db.Real
+  livenessScore   Float?                @db.Real
+  /// When it happened, according to the device.
+  capturedAt      DateTime              @db.Timestamptz(3)
+  /// When the server received it. Large gaps raise the CLOCK_SKEW flag.
+  receivedAt      DateTime              @default(now()) @db.Timestamptz(3)
+  /// Producer-supplied key; makes at-least-once delivery safe.
+  idempotencyKey  String
+  createdByUserId String?               @db.Uuid
+  correctionId    String?               @unique @db.Uuid
+  flags           AttendanceEventFlag[] @default([])
+  voidedAt        DateTime?             @db.Timestamptz(3)
+  voidReason      String?
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee              @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  camera       Camera?               @relation(fields: [organizationId, cameraId], references: [organizationId, id], onDelete: Restrict)
+  correction   AttendanceCorrection? @relation(fields: [correctionId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, employeeId, capturedAt])
+  @@index([organizationId, capturedAt])
+}
+
+/// One row per employee per work date. A derived projection that can always
+/// be recomputed from AttendanceEvent + Shift + Holiday + LeaveRequest.
+model AttendanceRecord {
+  id                String           @id @default(uuid(7)) @db.Uuid
+  organizationId    String           @db.Uuid
+  employeeId        String           @db.Uuid
+  workDate          DateTime         @db.Date
+  /// Snapshot of the shift used for the calculation.
+  shiftId           String?          @db.Uuid
+  status            AttendanceStatus
+  firstInAt         DateTime?        @db.Timestamptz(3)
+  lastOutAt         DateTime?        @db.Timestamptz(3)
+  workedMinutes     Int              @default(0)
+  lateMinutes       Int              @default(0)
+  earlyLeaveMinutes Int              @default(0)
+  computedAt        DateTime         @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  shift        Shift?       @relation(fields: [organizationId, shiftId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([employeeId, workDate])
+  @@index([organizationId, workDate, status])
+}
+
+/// Approval creates a CORRECTION event; records are never edited directly.
+model AttendanceCorrection {
+  id             String              @id @default(uuid(7)) @db.Uuid
+  organizationId String              @db.Uuid
+  employeeId     String              @db.Uuid
+  workDate       DateTime            @db.Date
+  requestedType  AttendanceEventType
+  requestedTime  DateTime            @db.Timestamptz(3)
+  reason         String
+  status         RequestStatus       @default(PENDING)
+  requestedById  String              @db.Uuid
+  reviewedById   String?             @db.Uuid
+  reviewedAt     DateTime?           @db.Timestamptz(3)
+  reviewNote     String?
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee       Employee         @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+  resultingEvent AttendanceEvent?
+
+  @@index([organizationId, status, createdAt])
+  @@index([employeeId, workDate])
+}
+
+model LeaveRequest {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  organizationId String        @db.Uuid
+  employeeId     String        @db.Uuid
+  leaveType      LeaveType
+  startDate      DateTime      @db.Date
+  endDate        DateTime      @db.Date
+  isHalfDay      Boolean       @default(false)
+  reason         String?
+  status         RequestStatus @default(PENDING)
+  reviewedById   String?       @db.Uuid
+  reviewedAt     DateTime?     @db.Timestamptz(3)
+  reviewNote     String?
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     Employee     @relation(fields: [organizationId, employeeId], references: [organizationId, id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([employeeId, startDate])
+}
+
+// ───────────────────────────── Audit ─────────────────────────────
+
+/// Append-only. Deliberately has NO foreign keys: audit history must
+/// survive deletion of the users/entities it describes.
+/// `metadata` must never contain passwords, tokens or biometric data.
+model AuditLog {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String?  @db.Uuid
+  actorUserId    String?  @db.Uuid
+  /// e.g. "employee.update", "biometric.delete", "auth.login_failed"
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  requestId      String?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId, createdAt])
+}
