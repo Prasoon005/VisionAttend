@@ -2,11 +2,12 @@
  * Development seed: a synthetic demo organization.
  *
  * All data here is fictional (example.test is a reserved domain). Never seed
- * real employee data. User accounts are added in Phase 2 together with
- * password hashing.
+ * real employee data. Demo logins share one password taken from
+ * SEED_USER_PASSWORD in .env, so no password is ever committed.
  */
 import path from 'node:path';
 import { config as loadEnv } from 'dotenv';
+import { hashPassword } from '../src/lib/password.js';
 import { createPrismaClient } from '../src/lib/prisma.js';
 
 loadEnv({ path: path.resolve(import.meta.dirname, '../../../.env'), quiet: true });
@@ -16,10 +17,29 @@ if (process.env.NODE_ENV === 'production') {
 }
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL is not set');
+const seedPassword = process.env.SEED_USER_PASSWORD ?? '';
+if (seedPassword.length < 12 || seedPassword.includes('replace_with')) {
+  throw new Error('Set SEED_USER_PASSWORD in .env (at least 12 characters, not the placeholder)');
+}
 
 const prisma = createPrismaClient(databaseUrl);
 
 async function seed() {
+  const passwordHash = await hashPassword(seedPassword);
+  // Re-running the seed resets the demo passwords and clears any lockout.
+  const upsertUser = (
+    email: string,
+    role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'EMPLOYEE',
+    organizationId: string | null,
+  ) =>
+    prisma.user.upsert({
+      where: { email },
+      update: { passwordHash, failedLoginCount: 0, lockedUntil: null, status: 'ACTIVE' },
+      create: { email, role, organizationId, passwordHash },
+    });
+
+  await upsertUser('superadmin@example.test', 'SUPER_ADMIN', null);
+
   const org = await prisma.organization.upsert({
     where: { slug: 'demo' },
     update: {},
@@ -62,11 +82,16 @@ async function seed() {
     },
   });
 
+  await upsertUser('admin@demo.example.test', 'ORG_ADMIN', org.id);
+  // Employee 001 can sign in to the self-service portal.
+  const employeeUser = await upsertUser('employee001@example.test', 'EMPLOYEE', org.id);
+
   for (let i = 1; i <= 5; i++) {
     const code = `EMP${String(i).padStart(3, '0')}`;
+    const userId = i === 1 ? employeeUser.id : null;
     await prisma.employee.upsert({
       where: { organizationId_employeeCode: { organizationId: org.id, employeeCode: code } },
-      update: {},
+      update: { userId },
       create: {
         organizationId: org.id,
         employeeCode: code,
@@ -76,11 +101,15 @@ async function seed() {
         departmentId: engineering?.id ?? null,
         defaultShiftId: generalShift.id,
         joinedOn: new Date('2026-01-01'),
+        userId,
       },
     });
   }
 
   console.log(`Seeded demo organization "${org.slug}" with 5 synthetic employees.`);
+  console.log(
+    'Logins (password = SEED_USER_PASSWORD): superadmin@example.test, admin@demo.example.test, employee001@example.test',
+  );
 }
 
 seed()

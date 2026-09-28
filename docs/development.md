@@ -22,13 +22,13 @@ visionattend/
 │   │   ├── prisma/          schema.prisma, migrations/, seed.ts
 │   │   ├── src/
 │   │   │   ├── config/      env validation (fails fast)
-│   │   │   ├── lib/         logger, prisma, redis, errors
-│   │   │   ├── middleware/  error handling (auth/RBAC in Phase 2)
+│   │   │   ├── lib/         logger, prisma, redis, errors, password, tokens, rate-limiter, request-context
+│   │   │   ├── middleware/  error handling, authenticate/requirePermission, rate limiting
 │   │   │   ├── modules/     one folder per feature: *.routes → *.controller → *.service (→ *.repository)
 │   │   │   ├── generated/   Prisma client (generated, git-ignored)
 │   │   │   ├── app.ts       builds the Express app (dependencies injected, so it is testable)
 │   │   │   └── server.ts    wiring, startup, graceful shutdown
-│   │   └── tests/
+│   │   └── tests/           unit tests; integration/ runs against real Postgres + Redis
 │   ├── web/                 React SPA
 │   │   └── src/
 │   │       ├── app/         router, layout
@@ -46,8 +46,9 @@ visionattend/
 ```
 
 **Layering rule (API):** routes only map URLs → controllers only translate HTTP ↔ service calls →
-services hold business rules → repositories (from Phase 2) hold Prisma queries and enforce tenant
-scoping. Business logic never lives in route handlers.
+services hold business rules → repositories hold Prisma queries and enforce tenant scoping
+(`TenantContext` from the token). Business logic never lives in route handlers. `app.ts` is the
+composition root that builds every service once and injects it.
 
 ## First-time setup
 
@@ -67,7 +68,7 @@ docker compose ps              # postgres and redis should become "healthy"
 
 # 4. Database
 pnpm db:migrate                # applies migrations
-pnpm db:seed                   # synthetic "demo" organization, 5 employees
+pnpm db:seed                   # synthetic "demo" organization, 5 employees, 3 logins
 
 # 5. CV service
 cd apps/cv-service
@@ -93,12 +94,23 @@ pnpm dev:api
 pnpm dev:web
 ```
 
-| URL                                         | Expect                                 |
-| ------------------------------------------- | -------------------------------------- |
-| <http://localhost:5173>                     | System Status page, all services green |
-| <http://127.0.0.1:4000/api/v1/health>       | `{"status":"ok",…}`                    |
-| <http://127.0.0.1:4000/api/v1/health/ready> | `{"status":"ready",…}` (HTTP 200)      |
-| <http://127.0.0.1:8000/docs>                | CV service OpenAPI docs                |
+| URL                                         | Expect                            |
+| ------------------------------------------- | --------------------------------- |
+| <http://localhost:5173>                     | Login page                        |
+| <http://127.0.0.1:4000/api/v1/health>       | `{"status":"ok",…}`               |
+| <http://127.0.0.1:4000/api/v1/health/ready> | `{"status":"ready",…}` (HTTP 200) |
+| <http://127.0.0.1:8000/docs>                | CV service OpenAPI docs           |
+
+### Demo logins (from `pnpm db:seed`)
+
+All use the password in `SEED_USER_PASSWORD` (`.env`). Re-running the seed resets them and clears
+lockouts.
+
+| Email                      | Role        | Sees                                              |
+| -------------------------- | ----------- | ------------------------------------------------- |
+| `superadmin@example.test`  | Super Admin | Organizations console, System status              |
+| `admin@demo.example.test`  | Org Admin   | Demo Organization home + security activity feed   |
+| `employee001@example.test` | Employee    | Self-service home (attendance arrives in Phase 4) |
 
 **Why run the CV service natively in development?** Docker Desktop on Windows cannot pass a USB
 webcam through to Linux containers. Running the CV service natively keeps the camera accessible for
@@ -121,7 +133,8 @@ The API container applies pending migrations on startup.
 pnpm typecheck        # strict TypeScript across all packages
 pnpm lint             # ESLint (typescript-eslint strict, no `any`)
 pnpm format:check     # Prettier
-pnpm test             # Vitest: shared + api + web
+pnpm test             # Vitest unit tests: shared + api + web (no database needed)
+pnpm --filter @visionattend/api test:integration   # real Postgres + Redis (docker compose up -d)
 
 cd apps/cv-service
 python -m pytest
@@ -129,8 +142,10 @@ python -m ruff check . && python -m ruff format --check .
 python -m mypy app tests      # strict
 ```
 
-API tests build the app through `createApp()` with fake dependency probes, so they need **no**
-database, Redis or CV service.
+API unit tests build the app through `createApp()` with fake dependencies, so they need **no**
+database, Redis or CV service. Integration tests (`apps/api/tests/integration`) migrate and use a
+separate database, always named `<your database>_test`, and Redis logical database 15. They wipe
+every table between tests, which is why they never use your development database.
 
 ## Environment variables
 
@@ -144,7 +159,8 @@ database, Redis or CV service.
 | `DATABASE_URL`                        | api, prisma | Use `127.0.0.1`, not `localhost` (Node may resolve IPv6 `::1`, but ports are bound to IPv4) |
 | `REDIS_PASSWORD`                      | compose     | Redis `requirepass`                                                                         |
 | `REDIS_URL`                           | api         | `redis://:PASSWORD@127.0.0.1:6379`                                                          |
-| `JWT_SECRET`                          | api         | ≥ 32 characters; signs access tokens (Phase 2)                                              |
+| `JWT_SECRET`                          | api         | ≥ 32 characters; signs access tokens                                                        |
+| `SEED_USER_PASSWORD`                  | seed        | ≥ 12 characters; password of the synthetic demo logins                                      |
 | `CV_SERVICE_URL`                      | api         | `http://127.0.0.1:8000`                                                                     |
 | `CV_SERVICE_TOKEN`                    | api, cv     | ≥ 32 characters; must be identical on both sides                                            |
 | `VITE_API_URL`                        | web         | Empty in development (Vite proxy)                                                           |
@@ -153,14 +169,17 @@ Future variables: `TEMPLATE_ENCRYPTION_KEY` (CV only, Phase 5).
 
 ## Troubleshooting
 
-| Symptom                                      | Fix                                                                 |
-| -------------------------------------------- | ------------------------------------------------------------------- |
-| `Invalid environment configuration` on start | The message names the variable: fix it in `.env`                    |
-| `Can't reach database server at ::1:5432`    | Use `127.0.0.1` in `DATABASE_URL`                                   |
-| Readiness shows `cvService: down`            | CV service not running, or `CV_SERVICE_TOKEN` differs between sides |
-| `EBUSY` / permission errors during install   | The repo is inside OneDrive: move it                                |
-| `ERR_PNPM_UNSUPPORTED_ENGINE`                | Upgrade Node.js to ≥ 22.13                                          |
-| Prisma client import errors                  | `pnpm --filter @visionattend/api db:generate`                       |
+| Symptom                                      | Fix                                                                                                                     |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `Invalid environment configuration` on start | The message names the variable: fix it in `.env`                                                                        |
+| `Can't reach database server at ::1:5432`    | Use `127.0.0.1` in `DATABASE_URL`                                                                                       |
+| Readiness shows `cvService: down`            | CV service not running, or `CV_SERVICE_TOKEN` differs between sides                                                     |
+| `EBUSY` / permission errors during install   | The repo is inside OneDrive: move it                                                                                    |
+| `ERR_PNPM_UNSUPPORTED_ENGINE`                | Upgrade Node.js to ≥ 22.13                                                                                              |
+| Prisma client import errors                  | `pnpm --filter @visionattend/api db:generate`                                                                           |
+| Demo login says "Invalid email or password"  | Locked after 5 failures (15 min), or re-run `pnpm db:seed`                                                              |
+| Signed out after every reload                | Open the app on `localhost` through the Vite proxy (the refresh cookie is `Secure` and path-scoped)                     |
+| `429 RATE_LIMITED` while testing             | Wait for `Retry-After`, or `docker compose exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning FLUSHDB'` |
 
 ## Conventions
 

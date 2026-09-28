@@ -28,8 +28,11 @@ hand-written CHECK constraints at the end of the initial migration.
 
 **Enforcement has two layers:**
 
-1. **Application:** repositories take a tenant context derived from the JWT. The organization is never
-   read from the request body (Phase 2).
+1. **Application:** repositories take a `TenantContext` built only from the verified JWT
+   (`getTenant(req)` in `apps/api/src/lib/request-context.ts`) and add `organizationId` to every
+   query themselves. The organization is never read from the URL, query or body. A record owned by
+   another tenant is indistinguishable from a missing one (404). Covered by
+   `tests/integration/tenancy.test.ts`.
 2. **Database: composite foreign keys.** Every tenant table has `UNIQUE (organizationId, id)`, and
    references use both columns:
 
@@ -71,6 +74,9 @@ which calendar day an event belongs to. `status` can be ACTIVE or SUSPENDED.
   needs no organization slug. _Trade-off:_ one email cannot belong to two organizations.
 - `passwordHash` is argon2id and never returned by the API. `failedLoginCount` and `lockedUntil`
   implement account lockout.
+- `mustChangePassword` (Phase 2 migration `auth_must_change_password`) is set for generated
+  one-time passwords. Until the user picks their own, the API accepts only `/auth/me`,
+  `/auth/change-password` and `/auth/logout`.
 - **Why separate from Employee:** not every employee needs a login, and not every admin is an
   employee.
 

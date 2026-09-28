@@ -140,20 +140,23 @@ model Organization {
 
 /// A login identity. Not every employee has one; not every user is an employee.
 model User {
-  id               String     @id @default(uuid(7)) @db.Uuid
+  id                 String     @id @default(uuid(7)) @db.Uuid
   /// NULL only for SUPER_ADMIN (enforced by a CHECK constraint).
-  organizationId   String?    @db.Uuid
+  organizationId     String?    @db.Uuid
   /// Stored lower-cased; globally unique so login needs no org slug.
-  email            String     @unique
+  email              String     @unique
   /// argon2id hash. Never returned by the API.
-  passwordHash     String
-  role             Role
-  status           UserStatus @default(ACTIVE)
-  failedLoginCount Int        @default(0)
-  lockedUntil      DateTime?  @db.Timestamptz(3)
-  lastLoginAt      DateTime?  @db.Timestamptz(3)
-  createdAt        DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime   @updatedAt @db.Timestamptz(3)
+  passwordHash       String
+  role               Role
+  status             UserStatus @default(ACTIVE)
+  /// Set when the password was generated for the user (onboarding); the
+  /// user must choose their own before doing anything else.
+  mustChangePassword Boolean    @default(false)
+  failedLoginCount   Int        @default(0)
+  lockedUntil        DateTime?  @db.Timestamptz(3)
+  lastLoginAt        DateTime?  @db.Timestamptz(3)
+  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
 
   organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   employee      Employee?

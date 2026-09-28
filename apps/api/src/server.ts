@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { ConfigError, loadConfig } from './config/env.js';
 import { createLogger } from './lib/logger.js';
 import { createPrismaClient } from './lib/prisma.js';
+import { RedisRateLimiter } from './lib/rate-limiter.js';
 import { createRedisClient } from './lib/redis.js';
 import { createHealthProbes } from './modules/health/health.probes.js';
 import { HealthService } from './modules/health/health.service.js';
@@ -46,7 +47,14 @@ function main() {
     }),
   });
 
-  const app = createApp({ logger, corsOrigins: config.CORS_ORIGINS, healthService });
+  const app = createApp({
+    logger,
+    corsOrigins: config.CORS_ORIGINS,
+    healthService,
+    prisma,
+    rateLimiter: new RedisRateLimiter(redis, logger),
+    jwtSecret: config.JWT_SECRET,
+  });
 
   // Dependencies may still be starting; the API boots anyway and reports
   // their state through /api/v1/health/ready instead of crash-looping.

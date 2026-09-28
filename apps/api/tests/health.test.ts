@@ -1,4 +1,3 @@
-import { pino } from 'pino';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import {
@@ -6,21 +5,10 @@ import {
   livenessResponseSchema,
   readinessResponseSchema,
 } from '@visionattend/shared';
-import { createApp } from '../src/app.js';
-import { HealthService, type HealthProbes } from '../src/modules/health/health.service.js';
+import type { HealthProbes } from '../src/modules/health/health.service.js';
+import { buildTestApp } from './helpers/test-app.js';
 
-const logger = pino({ level: 'silent' });
-const up = async () => {};
-
-function buildApp(probes: Partial<HealthProbes> = {}) {
-  const healthService = new HealthService({
-    version: 'test',
-    logger,
-    timeoutMs: 100,
-    probes: { database: up, redis: up, cvService: up, ...probes },
-  });
-  return createApp({ logger, corsOrigins: ['http://localhost:5173'], healthService });
-}
+const buildApp = (probes: Partial<HealthProbes> = {}) => buildTestApp({ probes });
 
 describe('GET /api/v1/health (liveness)', () => {
   it('returns ok with the shared response contract', async () => {

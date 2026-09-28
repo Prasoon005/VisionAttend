@@ -10,8 +10,9 @@ daily attendance records using each organization's shifts, holidays and leave.
 It is designed privacy-first: no raw face images are stored, face templates are encrypted with a
 key the main API never holds, and biometric enrollment requires recorded consent.
 
-> **Status: Phase 1 (foundation).** Architecture, schema, service scaffolds, Docker and health
-> checks are in place. Features arrive phase by phase — see [docs/roadmap.md](docs/roadmap.md).
+> **Status: Phase 2 (auth and tenancy) complete.** Login, rotating sessions, RBAC, tenant isolation,
+> organization onboarding, audit logging and rate limiting are in place. Features arrive phase by
+> phase — see [docs/roadmap.md](docs/roadmap.md).
 
 ## Architecture at a glance
 
@@ -44,7 +45,7 @@ cp .env.example .env            # then replace every "replace_with..." value
 pnpm install                    # also generates the Prisma client
 docker compose up -d            # PostgreSQL + Redis
 pnpm db:migrate                 # apply migrations
-pnpm db:seed                    # synthetic demo organization
+pnpm db:seed                    # synthetic demo org + logins (password: SEED_USER_PASSWORD)
 
 # CV service (separate terminal)
 cd apps/cv-service
