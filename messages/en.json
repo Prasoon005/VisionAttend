@@ -1,0 +1,107 @@
+{
+  "Metadata": {
+    "title": "VisionAttend",
+    "description": "Facial-recognition attendance for colleges, offices and factories."
+  },
+  "Nav": {
+    "mainNavigation": "Main navigation",
+    "home": "Home",
+    "designSystem": "Design system",
+    "skipToContent": "Skip to content"
+  },
+  "TopBar": {
+    "language": "Change language",
+    "theme": "Change theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "notifications": "Notifications",
+    "notificationsEmptyTitle": "You're all caught up",
+    "notificationsEmptyBody": "Alerts about attendance, requests and tickets will appear here.",
+    "profile": "Profile menu",
+    "guest": "Guest",
+    "signedOut": "You are not signed in.",
+    "signIn": "Sign in"
+  },
+  "Home": {
+    "eyebrow": "Smart attendance",
+    "title": "Attendance that recognizes you",
+    "subtitle": "Check in with your face in seconds, from your phone or a kiosk at the entrance. Private by design: only a numeric face signature ever leaves your device.",
+    "featuresTitle": "What VisionAttend does",
+    "features": {
+      "face": {
+        "title": "Face check-in",
+        "body": "Liveness-checked face recognition on your phone or a shared kiosk."
+      },
+      "kiosk": {
+        "title": "Hands-free kiosk",
+        "body": "A tablet at the door recognizes people as they walk in and greets them."
+      },
+      "voice": {
+        "title": "Voice guidance",
+        "body": "Spoken greetings and voice commands in your own language."
+      },
+      "languages": {
+        "title": "Your language",
+        "body": "The whole app works in English and Hindi, with more languages to come."
+      },
+      "insights": {
+        "title": "Live insights",
+        "body": "Who is in right now, late arrivals and trends at a glance."
+      },
+      "privacy": {
+        "title": "Privacy first",
+        "body": "Explicit consent, encrypted face data and one-tap deletion."
+      }
+    }
+  },
+  "DesignSystem": {
+    "title": "Design system",
+    "subtitle": "The tokens and components every VisionAttend screen is built from.",
+    "colors": "Color tokens",
+    "typography": "Typography",
+    "typeDisplay": "Display heading",
+    "typeHeading": "Section heading",
+    "typeBody": "Body text is comfortable to read on a phone and on a desktop.",
+    "typeMuted": "Muted text for hints and secondary details.",
+    "buttons": "Buttons",
+    "buttonPrimary": "Primary",
+    "buttonSecondary": "Secondary",
+    "buttonOutline": "Outline",
+    "buttonGhost": "Ghost",
+    "buttonDestructive": "Destructive",
+    "badges": "Badges",
+    "badgeOnTime": "On time",
+    "badgeLate": "Late",
+    "badgeAbsent": "Absent",
+    "feedback": "Dialogs and toasts",
+    "openDialog": "Open dialog",
+    "dialogTitle": "Example dialog",
+    "dialogBody": "Dialogs trap focus, close with Escape and work with screen readers.",
+    "close": "Close",
+    "showToast": "Show toast",
+    "toastMessage": "Saved successfully",
+    "loading": "Loading states",
+    "emptyStates": "Empty states",
+    "emptyTitle": "Nothing here yet",
+    "emptyBody": "When there is data to show, it appears here.",
+    "dataTable": "Data table",
+    "languagesCaption": "Languages supported by this build",
+    "columnCode": "Code",
+    "columnNative": "Native name",
+    "columnEnglish": "English name",
+    "columnDirection": "Direction",
+    "directionLtr": "Left to right",
+    "directionRtl": "Right to left"
+  },
+  "DataTable": {
+    "empty": "No rows to show.",
+    "sortAscending": "Sorted ascending",
+    "sortDescending": "Sorted descending"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "body": "The page you were looking for does not exist or has moved.",
+    "backHome": "Back to home"
+  }
+}
