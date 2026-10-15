@@ -5,6 +5,19 @@ newest first.
 
 ## [Unreleased]
 
+### Added — Phase 1b: sessions and protected routes (2026-10-16)
+
+- `@supabase/ssr` cookie sessions; `proxy.ts` refreshes the session on every request and redirects
+  signed-out visitors to the member or admin sign-in page with a validated `next` target.
+- `requireRole()` page guard reading the live profile; inactive accounts are sent to sign-in.
+- Role homes: `/platform` (Super Admin), `/admin` (Org Admin), `/dashboard` (members), with real
+  data read through RLS.
+- Role-aware navigation; profile menu shows the signed-in user and role.
+- Validated public env (`lib/env.ts`), `npm run env:local` to generate `.env.local` from the local
+  stack; CI writes it before building.
+- Tests: route-access and navigation unit tests (54 unit tests in total), redirect E2E (51 E2E tests
+  across 3 devices).
+
 ### Added — Phase 1a: identity & tenancy database (2026-10-16)
 
 - Local Supabase stack (CLI + Docker) with invite-only auth settings and Mailpit for emails.

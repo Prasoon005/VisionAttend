@@ -7,7 +7,10 @@
     "mainNavigation": "Main navigation",
     "home": "Home",
     "designSystem": "Design system",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "dashboard": "Dashboard",
+    "admin": "Admin",
+    "platform": "Platform"
   },
   "TopBar": {
     "language": "Change language",
@@ -103,5 +106,35 @@
     "title": "Page not found",
     "body": "The page you were looking for does not exist or has moved.",
     "backHome": "Back to home"
+  },
+  "Roles": {
+    "super_admin": "Super Admin",
+    "org_admin": "Organization admin",
+    "manager": "Manager",
+    "member": "Member"
+  },
+  "Dashboard": {
+    "title": "Welcome, {name}",
+    "subtitle": "Your attendance home. Check-in and history arrive in later phases.",
+    "organization": "Organization",
+    "role": "Role",
+    "department": "Department",
+    "noDepartment": "Not assigned"
+  },
+  "AdminHome": {
+    "title": "Admin",
+    "subtitle": "Manage {org}.",
+    "activeMembers": "Active members",
+    "pendingInvites": "Pending invitations",
+    "departments": "Departments"
+  },
+  "PlatformHome": {
+    "title": "Platform",
+    "subtitle": "Organizations using VisionAttend.",
+    "organizations": "Organizations",
+    "recent": "Recently added",
+    "none": "No organizations yet.",
+    "suspended": "Suspended",
+    "active": "Active"
   }
 }

@@ -147,3 +147,17 @@ Each record states what was chosen, the alternatives considered and why. Newest 
 - **Decision:** Failed sign-in counters and lockouts (5 failures → 15 minutes) live in Redis with a
   TTL, not in a table: they expire on their own and need no clean-up job. Locally and in CI an
   Upstash-compatible emulator container is used, so the same `@upstash/ratelimit` code runs offline.
+
+## ADR-017 — Proxy checks sign-in; pages check roles
+
+- **Date:** 2026-10-16 · **Status:** Accepted
+- **Context:** `CLAUDE.md` asks for three enforcement layers: route protection, server-side checks
+  and RLS. Roles are deliberately not in the access token (ADR-014).
+- **Decision:** `proxy.ts` refreshes the session and redirects signed-out visitors (cheap: no
+  database query). Each protected page calls `requireRole()`, which reads the live profile once per
+  request (React `cache`) and redirects users with the wrong role to their own home. RLS remains the
+  final authority for every query.
+- **Why not check roles in the proxy:** a profile lookup on every request (including assets and
+  prefetches) adds latency, and Next.js advises keeping the proxy light. Layouts aren't used as the
+  guard because they don't re-run on client-side navigation; pages do.
+- **Consequence:** pages render per request (they read cookies), so they are no longer prerendered.

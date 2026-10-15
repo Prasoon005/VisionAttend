@@ -4,10 +4,11 @@ import { ScanFace } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
-import { isActive, NAV_ITEMS } from './nav-items';
+import type { Role } from '@/lib/auth/route-access';
+import { isActive, navItemsFor } from './nav-items';
 
 /** Desktop navigation (md and up). On phones the bottom bar takes over. */
-export function Sidebar() {
+export function Sidebar({ role }: { role: Role | null }) {
   const t = useTranslations('Nav');
   const pathname = usePathname();
 
@@ -19,7 +20,7 @@ export function Sidebar() {
       </Link>
       <nav aria-label={t('mainNavigation')} data-testid="sidebar-nav" className="flex-1 px-3 py-2">
         <ul className="space-y-1">
-          {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
+          {navItemsFor(role).map(({ href, labelKey, icon: Icon }) => {
             const active = isActive(pathname, href);
             return (
               <li key={href}>

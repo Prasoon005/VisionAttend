@@ -14,8 +14,8 @@ In Progress (started 2026-10-16).
 | Slice | Scope                                                                                   | Status  |
 | ----- | --------------------------------------------------------------------------------------- | ------- |
 | 1a    | Schema, RLS, admin functions, invite-only sign-up, seed, DB tests                       | Done    |
-| 1b    | Supabase clients, session refresh in `proxy.ts`, protected routes                       | Next    |
-| 1c    | Member and Admin sign-in pages, role redirect, magic link, sign-out (incl. all devices) | Planned |
+| 1b    | Supabase clients, session refresh in `proxy.ts`, protected routes                       | Done    |
+| 1c    | Member and Admin sign-in pages, role redirect, magic link, sign-out (incl. all devices) | Next    |
 | 1d    | Email verification, forgot/reset password, auth callback                                | Planned |
 | 1e    | Rate limiting (Upstash), lockout, password-strength meter, auth audit                   | Planned |
 | 1f    | Organization onboarding, invites by email and by link/code                              | Planned |
@@ -35,17 +35,32 @@ In Progress (started 2026-10-16).
 - **Invite-only sign-up**, enforced by triggers on `auth.users`; tokens are stored only as hashes.
 - **Append-only audit log**, protected even from the table owner.
 - **Seed:** Demo College with 3 departments and one account per role.
+- **Sessions (1b):** cookie-based Supabase sessions via `@supabase/ssr`; `proxy.ts` refreshes them on
+  every request.
+- **Route protection (1b):** signed-out visitors are redirected to the member or admin sign-in page
+  with a validated `next` target; every protected page checks the live role (`requireRole`).
+- **Role homes (1b):** `/platform` (Super Admin: organization count, recent organizations), `/admin`
+  (Org Admin: active members, pending invitations, departments), `/dashboard` (members: organization,
+  role, department), all read through RLS.
+- **Role-aware navigation (1b)** and a profile menu that shows the signed-in user.
 
 ## 4. Files added/changed
 
-| Path                                                          | Purpose                                                                                   |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `supabase/config.toml`                                        | Local Supabase config (invite-only auth, password rules, redirect URLs, lighter services) |
-| `supabase/migrations/20261016000100_identity_and_tenancy.sql` | Schema, RLS, functions, triggers                                                          |
-| `supabase/seed.sql`                                           | Local demo data                                                                           |
-| `tests/db/*`, `vitest.db.config.mts`                          | Database tests (`npm run test:db`)                                                        |
-| `.github/workflows/ci.yml`                                    | Starts Supabase in CI and runs the database tests                                         |
-| `package.json`                                                | `supabase` CLI, `@supabase/supabase-js`, `test:db` script                                 |
+| Path                                                              | Purpose                                                                                                        |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `supabase/config.toml`                                            | Local Supabase config (invite-only auth, password rules, redirect URLs, lighter services)                      |
+| `supabase/migrations/20261016000100_identity_and_tenancy.sql`     | Schema, RLS, functions, triggers                                                                               |
+| `supabase/seed.sql`                                               | Local demo data                                                                                                |
+| `tests/db/*`, `vitest.db.config.mts`                              | Database tests (`npm run test:db`)                                                                             |
+| `.github/workflows/ci.yml`                                        | Starts Supabase in CI and runs the database tests                                                              |
+| `package.json`                                                    | `supabase` CLI, `@supabase/supabase-js`, `@supabase/ssr`, `zod`, `server-only`; `test:db`, `env:local` scripts |
+| `lib/env.ts`, `scripts/write-env-local.mjs`, `.env.example`       | Validated public config; local `.env.local` generator                                                          |
+| `lib/supabase/server.ts`, `lib/supabase/proxy.ts`                 | Server client (acts as the user), session refresh for the proxy                                                |
+| `lib/auth/route-access.ts`, `lib/auth/session.ts`                 | Access rules, role homes, safe `next`; live session + `requireRole`                                            |
+| `proxy.ts`                                                        | Locale + session refresh + sign-in gate                                                                        |
+| `app/[locale]/(protected)/{dashboard,admin,platform}/page.tsx`    | Role homes                                                                                                     |
+| `components/shell/*`                                              | Role-filtered navigation, profile menu with the signed-in user                                                 |
+| `tests/unit/route-access.test.ts`, `tests/e2e/auth-guard.spec.ts` | Access-rule unit tests; redirect E2E                                                                           |
 
 ## 5. Database changes
 
@@ -56,7 +71,9 @@ RPCs; column grants; RLS policies. See [DATABASE.md](../DATABASE.md).
 
 ## 6. Environment variables added
 
-None yet. They arrive with slice 1b.
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`,
+`SUPABASE_SECRET_KEY` (server only). Details in [SETUP.md](../SETUP.md#environment-variables).
+Generate them locally with `npm run env:local`.
 
 ## 7. How to test it
 
@@ -71,18 +88,27 @@ profiles should be there, and `audit_logs` should reject an edit.
 
 ## 8. Verification results
 
-Slice 1a (2026-10-16): `test:db` 54/54 pass. Typecheck, lint, unit tests and `docs:check` all
-pass. Full-phase results are added when the phase completes.
+| Slice | Date       | Results                                                                                                 |
+| ----- | ---------- | ------------------------------------------------------------------------------------------------------- |
+| 1a    | 2026-10-16 | `test:db` 54/54; typecheck, lint, unit, `docs:check` pass                                               |
+| 1b    | 2026-10-16 | typecheck, lint pass; unit 54/54; `test:db` 54/54; build pass; E2E 51/51 (3 devices); `docs:check` pass |
+
+Full-phase results are added when the phase completes.
 
 ## 9. Known limitations & follow-ups
 
 - Deactivation ends data access immediately (RLS), but the session itself is revoked in slice 1g
   (Auth admin ban).
+- Every page is now rendered per request (the shell reads the session), so pages are no longer
+  prerendered at build time. This is expected for a signed-in app.
+- Until slice 1c, the sign-in pages don't exist yet: the redirect works, but its target shows the
+  404 page.
 - Supabase's built-in mail sender is heavily rate-limited on cloud projects, so Resend (free tier)
   will be needed at deployment (Phase 12). Locally, Mailpit is used.
 
 ## 10. Deviations from the plan
 
-| Plan                                                              | What happened                                                           | Why                                                                                                                                                                |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Trusted server code could create users through a bootstrap marker | Only direct SQL (the seed) can; tests create users through real invites | Supabase Auth adds custom `app_metadata` after the insert. Stricter, and better ([ADR-013](../DECISIONS.md#adr-013--invite-only-sign-up-enforced-in-the-database)) |
+| Plan                                                              | What happened                                                                               | Why                                                                                                                                                                |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Proxy checks roles (route protection layer)                       | Proxy checks only that a user is signed in; each page checks the role from the live profile | Roles aren't in the token (ADR-014); a database lookup in the proxy would slow every request. See ADR-017                                                          |
+| Trusted server code could create users through a bootstrap marker | Only direct SQL (the seed) can; tests create users through real invites                     | Supabase Auth adds custom `app_metadata` after the insert. Stricter, and better ([ADR-013](../DECISIONS.md#adr-013--invite-only-sign-up-enforced-in-the-database)) |

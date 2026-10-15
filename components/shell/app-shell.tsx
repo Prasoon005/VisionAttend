@@ -2,6 +2,7 @@ import { ScanFace } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { Link } from '@/i18n/navigation';
+import { getSession } from '@/lib/auth/session';
 import { BottomNav } from './bottom-nav';
 import { LanguageSwitcher } from './language-switcher';
 import { NotificationsBell } from './notifications-bell';
@@ -16,6 +17,9 @@ import { ThemeToggle } from './theme-toggle';
  */
 export async function AppShell({ children }: { children: ReactNode }) {
   const t = await getTranslations('Nav');
+  const session = await getSession();
+  const user = session.status === 'active' ? session.user : null;
+  const role = user?.role ?? null;
 
   return (
     <div className="flex min-h-dvh">
@@ -25,7 +29,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
       >
         {t('skipToContent')}
       </a>
-      <Sidebar />
+      <Sidebar role={role} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-1 border-b bg-background/80 px-4 backdrop-blur-lg sm:px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold md:hidden">
@@ -36,7 +40,9 @@ export async function AppShell({ children }: { children: ReactNode }) {
             <LanguageSwitcher />
             <ThemeToggle />
             <NotificationsBell />
-            <ProfileMenu />
+            <ProfileMenu
+              profile={user && { fullName: user.fullName, email: user.email, role: user.role }}
+            />
           </div>
         </header>
         {/* Bottom padding keeps content clear of the fixed mobile bottom bar. */}
@@ -47,7 +53,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
-      <BottomNav />
+      <BottomNav role={role} />
     </div>
   );
 }

@@ -69,13 +69,23 @@ in local and CI databases.
 
 ## Environment variables
 
-`.env.example` lists every variable by name. Copy it to `.env.local` (git ignores it). The app
-doesn't read any variables yet. The Supabase and Upstash variables arrive with slice 1b, when the app
-first connects. The database tests read the local URL and keys straight from `npx supabase status`.
+`.env.example` lists every variable by name. For local development, generate `.env.local` (git
+ignores it) from the running stack:
 
-| Name     | Used by | Added in |
-| -------- | ------- | -------- |
-| none yet |         |          |
+```bash
+npx supabase start
+npm run env:local      # writes .env.local from `supabase status` (local development keys only)
+```
+
+The app validates the public variables at startup (`lib/env.ts`) and fails with a clear message if
+one is missing. The database tests read the URL and keys straight from `npx supabase status`.
+
+| Name                                   | Used by                                                | Exposed to browser | Added in |
+| -------------------------------------- | ------------------------------------------------------ | ------------------ | -------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase clients, `proxy.ts`                           | Yes                | 1b       |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase clients (RLS applies)                         | Yes                | 1b       |
+| `NEXT_PUBLIC_SITE_URL`                 | Links in emails (from slice 1d)                        | Yes                | 1b       |
+| `SUPABASE_SECRET_KEY`                  | Server-only admin client (from slice 1e); bypasses RLS | **No**             | 1b       |
 
 ## Deployment
 

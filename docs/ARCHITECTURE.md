@@ -38,7 +38,7 @@ Only the numeric embedding goes to the server. Matching, attendance writes and e
 decision happen **server-side**, with Postgres Row Level Security as the final authority. The client
 is never trusted.
 
-## 2. What exists after Phase 0
+## 2. What exists now (Phase 0 + Phase 1 so far)
 
 ```mermaid
 flowchart TD
@@ -50,15 +50,17 @@ flowchart TD
   Layout --> Msg["messages/{locale}.json"]
 ```
 
-| Concern            | Where                                       | Notes                                                     |
-| ------------------ | ------------------------------------------- | --------------------------------------------------------- |
-| Locale negotiation | `proxy.ts`, `i18n/routing.ts`               | Every URL carries its locale (`localePrefix: 'always'`)   |
-| Translations       | `messages/*.json`, `i18n/request.ts`        | Keys are type-checked (`i18n/global.d.ts`)                |
-| Text direction     | `i18n/locales.ts` → `<html dir>`            | Radix `Direction.Provider` mirrors menus for RTL          |
-| Theme              | `next-themes` in `components/providers.tsx` | `class="dark"` set before paint, so no flash              |
-| Design tokens      | `app/globals.css`                           | Semantic OKLCH variables; components never use raw colors |
-| Motion             | `lib/motion.ts`, `components/motion.tsx`    | Shared presets; `reducedMotion="user"`                    |
-| Shell              | `components/shell/*`                        | Sidebar ≥ md, bottom bar < md, logical CSS properties     |
+| Concern            | Where                                             | Notes                                                                                 |
+| ------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Locale negotiation | `proxy.ts`, `i18n/routing.ts`                     | Every URL carries its locale (`localePrefix: 'always'`)                               |
+| Sessions           | `proxy.ts`, `lib/supabase/*`                      | Cookie sessions (`@supabase/ssr`), refreshed on every request                         |
+| Access control     | `lib/auth/route-access.ts`, `lib/auth/session.ts` | Proxy: sign-in gate. Pages: `requireRole()` on the live profile. RLS: final authority |
+| Translations       | `messages/*.json`, `i18n/request.ts`              | Keys are type-checked (`i18n/global.d.ts`)                                            |
+| Text direction     | `i18n/locales.ts` → `<html dir>`                  | Radix `Direction.Provider` mirrors menus for RTL                                      |
+| Theme              | `next-themes` in `components/providers.tsx`       | `class="dark"` set before paint, so no flash                                          |
+| Design tokens      | `app/globals.css`                                 | Semantic OKLCH variables; components never use raw colors                             |
+| Motion             | `lib/motion.ts`, `components/motion.tsx`          | Shared presets; `reducedMotion="user"`                                                |
+| Shell              | `components/shell/*`                              | Sidebar ≥ md, bottom bar < md, logical CSS properties                                 |
 
 ### Folder layout
 

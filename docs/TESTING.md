@@ -16,14 +16,15 @@ npm run typecheck && npm run lint && npm run test && npm run test:db && npm run 
 
 Runs in jsdom. `npm run test` (or `npm run test:watch`).
 
-| File                    | Covers                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------- |
-| `i18n-messages.test.ts` | Every locale has the same keys and `{placeholders}` as English, with no empty strings |
-| `locales.test.ts`       | Locale list, default locale, text direction, always-prefixed URLs                     |
-| `nav-items.test.ts`     | Active-link matching; every nav item has a translated label                           |
-| `empty-state.test.tsx`  | EmptyState renders title, description and action                                      |
-| `data-table.test.tsx`   | Rows, empty state, opt-in sorting (ascending → descending, `aria-sort`)               |
-| `docs-check.test.ts`    | The `docs:check` rules and its exit code                                              |
+| File                    | Covers                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `i18n-messages.test.ts` | Every locale has the same keys and `{placeholders}` as English, with no empty strings                       |
+| `locales.test.ts`       | Locale list, default locale, text direction, always-prefixed URLs                                           |
+| `nav-items.test.ts`     | Active-link matching; translated labels; role-filtered entries; no link to an area the role can't open      |
+| `route-access.test.ts`  | Which roles may open which area; guest-only sign-in pages; role homes; `safeNextPath` blocks open redirects |
+| `empty-state.test.tsx`  | EmptyState renders title, description and action                                                            |
+| `data-table.test.tsx`   | Rows, empty state, opt-in sorting (ascending → descending, `aria-sort`)                                     |
+| `docs-check.test.ts`    | The `docs:check` rules and its exit code                                                                    |
 
 ### Database — Vitest against local Supabase (`tests/db/`)
 
@@ -46,6 +47,8 @@ Runs against a **production build** on port 3100, in three projects:
 | `desktop-chrome`   | Desktop Chrome 1280×720 | Chromium |
 | `mobile-pixel-7`   | Pixel 7                 | Chromium |
 | `mobile-iphone-14` | iPhone 14               | WebKit   |
+
+`auth-guard.spec.ts` covers: signed-out visitors redirected from `/dashboard`, `/admin`, `/platform` to the right sign-in page with `next` kept; public pages stay reachable.
 
 `shell.spec.ts` covers: redirect to the default locale; sidebar on desktop and bottom bar on phones;
 no horizontal scroll; navigation with `aria-current`; switching to Hindi on the same page; dark theme

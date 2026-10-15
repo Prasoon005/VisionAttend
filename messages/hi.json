@@ -7,7 +7,10 @@
     "mainNavigation": "मुख्य नेविगेशन",
     "home": "होम",
     "designSystem": "डिज़ाइन सिस्टम",
-    "skipToContent": "मुख्य सामग्री पर जाएँ"
+    "skipToContent": "मुख्य सामग्री पर जाएँ",
+    "dashboard": "डैशबोर्ड",
+    "admin": "एडमिन",
+    "platform": "प्लेटफ़ॉर्म"
   },
   "TopBar": {
     "language": "भाषा बदलें",
@@ -103,5 +106,35 @@
     "title": "पेज नहीं मिला",
     "body": "जिस पेज को आप ढूँढ रहे थे वह मौजूद नहीं है या हटा दिया गया है।",
     "backHome": "होम पर लौटें"
+  },
+  "Roles": {
+    "super_admin": "सुपर एडमिन",
+    "org_admin": "संगठन एडमिन",
+    "manager": "मैनेजर",
+    "member": "सदस्य"
+  },
+  "Dashboard": {
+    "title": "स्वागत है, {name}",
+    "subtitle": "आपका उपस्थिति होम। चेक-इन और इतिहास अगले चरणों में आएँगे।",
+    "organization": "संगठन",
+    "role": "भूमिका",
+    "department": "विभाग",
+    "noDepartment": "निर्धारित नहीं"
+  },
+  "AdminHome": {
+    "title": "एडमिन",
+    "subtitle": "{org} का प्रबंधन करें।",
+    "activeMembers": "सक्रिय सदस्य",
+    "pendingInvites": "लंबित आमंत्रण",
+    "departments": "विभाग"
+  },
+  "PlatformHome": {
+    "title": "प्लेटफ़ॉर्म",
+    "subtitle": "VisionAttend का उपयोग करने वाले संगठन।",
+    "organizations": "संगठन",
+    "recent": "हाल ही में जोड़े गए",
+    "none": "अभी कोई संगठन नहीं।",
+    "suspended": "निलंबित",
+    "active": "सक्रिय"
   }
 }

@@ -5,13 +5,14 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
 import { transitions } from '@/lib/motion';
 import { cn } from '@/lib/utils';
-import { isActive, NAV_ITEMS } from './nav-items';
+import type { Role } from '@/lib/auth/route-access';
+import { isActive, navItemsFor } from './nav-items';
 
 /**
  * Phone navigation: fixed to the bottom, within thumb reach, padded for the
  * iOS home indicator (safe-area inset). Hidden from md upwards.
  */
-export function BottomNav() {
+export function BottomNav({ role }: { role: Role | null }) {
   const t = useTranslations('Nav');
   const pathname = usePathname();
 
@@ -22,7 +23,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
     >
       <ul className="mx-auto flex max-w-md">
-        {NAV_ITEMS.map(({ href, labelKey, icon: Icon }) => {
+        {navItemsFor(role).map(({ href, labelKey, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
             <li key={href} className="flex-1">

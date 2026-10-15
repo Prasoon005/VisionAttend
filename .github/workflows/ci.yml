@@ -35,6 +35,8 @@ jobs:
       # Local Supabase (Postgres, Auth, Storage, Mailpit) in Docker, exactly as in development.
       - name: Start Supabase
         run: npx supabase start -x studio,imgproxy,vector,logflare,edge-runtime,realtime
+      - name: Write .env.local for the local stack
+        run: npm run env:local
       - name: Database tests (RLS, invites, admin functions)
         run: npm run test:db
 

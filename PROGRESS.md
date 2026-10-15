@@ -1,7 +1,7 @@
 # Progress
 
-Current phase: **Phase 1 — Authentication & account management: in progress** (slice 1a done).
-Next: **slice 1b — Supabase clients and session handling**.
+Current phase: **Phase 1 — Authentication & account management: in progress** (slices 1a–1b done).
+Next: **slice 1c — sign-in pages, role redirect, magic link, sign-out**.
 
 | Phase | Theme                                  | Status      |
 | ----- | -------------------------------------- | ----------- |
@@ -49,3 +49,10 @@ Plan and slice status: [`docs/phases/phase-01-auth.md`](docs/phases/phase-01-aut
 
 - [ ] `npx supabase db reset`, then open Studio (<http://127.0.0.1:54323>): Demo College, 3 departments and 5 profiles exist.
 - [ ] In Studio's SQL editor, `update audit_logs set action = 'x.y'` fails with "append-only".
+
+**Slice 1b done:** cookie sessions, proxy sign-in gate, `requireRole()`, role homes, role-aware nav.
+
+**Manual tests for 1b:**
+
+- [ ] `npm run env:local`, then `npm run dev`: open <http://localhost:3000/en/dashboard> while signed out. You land on `/en/login?next=%2Fdashboard` (a 404 page until slice 1c).
+- [ ] `/en/admin` while signed out goes to `/en/admin/login?next=%2Fadmin`.
