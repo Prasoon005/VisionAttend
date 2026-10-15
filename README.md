@@ -1,82 +1,38 @@
 # VisionAttend
 
-**AI-powered workforce attendance and access management platform.**
+Facial-recognition attendance and workforce platform for colleges, offices and factories. It runs
+on free tiers (Vercel + Supabase), works well on phones, speaks multiple languages and supports
+voice.
 
-VisionAttend is a multi-tenant platform in which organizations manage employees, departments,
-shifts and cameras, and attendance is recorded from verified identity events: face recognition at
-registered cameras, kiosk check-ins, or approved manual corrections. Those events are processed into
-daily attendance records using each organization's shifts, holidays and leave.
+> **Status:** Phase 0 (foundation) is complete. Feature phases follow `CLAUDE.md`; progress is in
+> [`PROGRESS.md`](PROGRESS.md).
 
-It is designed privacy-first: no raw face images are stored, face templates are encrypted with a
-key the main API never holds, and biometric enrollment requires recorded consent.
+## Features available now
 
-> **Status: Phase 2 (auth and tenancy) complete.** Login, rotating sessions, RBAC, tenant isolation,
-> organization onboarding, audit logging and rate limiting are in place. Features arrive phase by
-> phase — see [docs/roadmap.md](docs/roadmap.md).
+- Responsive app shell: sidebar on desktop, bottom navigation on phones.
+- English and हिन्दी, switchable on any page, with language-specific URLs.
+- Light, dark and system themes.
+- Design system reference page (`/en/design-system`).
 
-## Architecture at a glance
+## Planned
 
-```text
- React SPA ──REST──▶ API (Node/Express/TS) ──▶ PostgreSQL (Prisma)
-                          │    ▲
-                          │    └── Redis (rate limits · cooldowns · event stream)
-                          ▼          ▲
-                     CV service (Python/FastAPI/OpenCV) ◀── cameras
-```
-
-| Component      | Path              | Role                                                               |
-| -------------- | ----------------- | ------------------------------------------------------------------ |
-| Web app        | `apps/web`        | Admin/HR console and employee portal                               |
-| API            | `apps/api`        | Business rules, auth, RBAC, tenancy; the only database writer      |
-| CV service     | `apps/cv-service` | Face detection, quality, embeddings, matching (internal only)      |
-| Shared package | `packages/shared` | Zod schemas, types, roles and permission catalog used by web + API |
-| Infrastructure | `infrastructure/` | Dockerfiles and nginx config                                       |
-
-Details: [architecture](docs/architecture.md) · [database](docs/database.md) ·
-[API](docs/api.md) · [security](docs/security.md) · [development](docs/development.md) ·
-[roadmap](docs/roadmap.md)
-
-## Quick start
-
-Prerequisites: Node.js ≥ 22.13, pnpm 10, Python 3.12+, Docker Desktop.
-
-```bash
-cp .env.example .env            # then replace every "replace_with..." value
-pnpm install                    # also generates the Prisma client
-docker compose up -d            # PostgreSQL + Redis
-pnpm db:migrate                 # apply migrations
-pnpm db:seed                    # synthetic demo org + logins (password: SEED_USER_PASSWORD)
-
-# CV service (separate terminal)
-cd apps/cv-service
-python -m venv .venv
-.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:create_app --factory --port 8000
-
-# API and web (separate terminals)
-pnpm dev:api                    # http://127.0.0.1:4000/api/v1/health
-pnpm dev:web                    # http://localhost:5173
-```
-
-Or run everything in containers: `docker compose --profile full up -d --build` and open
-<http://localhost:8080>.
-
-The full walkthrough, including the verification steps and troubleshooting, is in
-[docs/development.md](docs/development.md).
-
-## Development security note
-
-> Environment variables containing secrets must never be committed to version control. Use
-> `.env.example` as a template and create a local `.env` file for development.
-
-- `.env` is git-ignored; `.env.example` contains placeholders only.
-- Services **refuse to start** when a secret is missing, too short, or still a placeholder.
-- Only synthetic data (e.g. `employee001@example.test`) belongs in this repository — never real
-  employee records, face images, embeddings, camera recordings or database dumps.
+Face enrollment with explicit consent · face check-in on phone or kiosk with liveness checks · voice
+greetings and commands · leave and regularization requests · admin console with live dashboard and
+reports · feedback tickets · emergency roll call · offline kiosk · PWA.
 
 ## Tech stack
 
-React 19 · TypeScript 6 · Vite 8 · Tailwind CSS 4 · React Router · TanStack Query ·
-Node.js 22 · Express 5 · Prisma 7 · PostgreSQL 17 · Redis 7 · Python 3.12 · FastAPI · OpenCV ·
-NumPy · Docker Compose
+Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui · Motion · next-intl · Vitest ·
+Playwright. Supabase (Postgres, Auth, RLS, pgvector), Upstash and in-browser face AI join in later
+phases. Reasons for each choice: [`docs/DECISIONS.md`](docs/DECISIONS.md).
+
+## Quick start
+
+```bash
+npm install
+npx husky                              # enable the pre-commit hook (once)
+npm run dev                            # http://localhost:3000
+```
+
+Full setup, commands and environment variables: [`docs/SETUP.md`](docs/SETUP.md). All
+documentation: [`docs/README.md`](docs/README.md).

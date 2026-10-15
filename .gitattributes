@@ -1,0 +1,8 @@
+# Keep LF line endings in the repo and in working copies on every OS,
+# matching Prettier and .editorconfig (avoids CRLF churn on Windows).
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
