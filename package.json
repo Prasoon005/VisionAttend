@@ -17,9 +17,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "docs:check": "node scripts/docs-check.mjs"
+    "docs:check": "node scripts/docs-check.mjs",
+    "test:db": "vitest run --config vitest.db.config.mts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "@tanstack/react-table": "8.21.3",
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
@@ -52,6 +54,7 @@
     "lint-staged": "17.6.0",
     "prettier": "3.9.10",
     "prettier-plugin-tailwindcss": "0.8.1",
+    "supabase": "2.121.0",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "vitest": "5.0.5"

@@ -90,3 +90,60 @@ Each record states what was chosen, the alternatives considered and why. Newest 
 - **Decision:** Accept. The flaw is only reachable through glob patterns in our own lint config,
   never through user input, and the suggested `--force` fix downgrades to the Next 14 ESLint
   config, which breaks linting.
+
+## ADR-011 — Local Supabase (CLI + Docker) for development and CI
+
+- **Date:** 2026-10-16 · **Status:** Accepted
+- **Options:** a free cloud Supabase project now, or the local stack via `supabase start`.
+- **Decision:** Local stack. No account needed until deployment; tests can reset the database
+  freely; emails go to a local Mailpit inbox that E2E tests can read; CI runs the identical stack.
+  The Supabase CLI is a pinned dev dependency (`npx supabase …`), so there is no global install.
+- **Consequences:** Docker Desktop must be running (about 3 GB RAM). Cloud setup happens in Phase 12.
+
+## ADR-012 — Organizations are created by the Super Admin only
+
+- **Date:** 2026-10-16 · **Status:** Accepted
+- **Decision:** No self-serve organization sign-up. The Super Admin creates each organization and
+  invites its first Org Admin. Avoids abuse handling and fits colleges and companies being onboarded
+  deliberately.
+
+## ADR-013 — Invite-only sign-up enforced in the database
+
+- **Date:** 2026-10-16 · **Status:** Accepted
+- **Options:** (a) rely on the app only calling sign-up after checking an invite; (b) Supabase Auth
+  hooks; (c) triggers on `auth.users`.
+- **Decision:** (c). A `BEFORE INSERT` trigger rejects any new login without a valid, unexpired,
+  unrevoked invite token (or the SQL-only bootstrap marker used by the seed), consumes it, and an
+  `AFTER INSERT` trigger creates the profile from the invite. Public sign-up is also disabled in Auth
+  settings.
+- **Why:** Even if application code had a bug, or public sign-up were enabled by mistake, nobody can
+  join an organization without an invitation. Tokens are stored only as SHA-256 hashes.
+- **Discovered while building:** Supabase Auth adds custom `app_metadata` after the insert, so the
+  bootstrap path is usable only from direct SQL. That is stricter than planned, and better. Auth
+  also rewrites `user_metadata` after the insert, so a second trigger strips the token on every
+  write.
+
+## ADR-014 — Policies read the current profile, not JWT claims
+
+- **Date:** 2026-10-16 · **Status:** Accepted
+- **Options:** put `org_id` and `role` into the access token with a Custom Access Token Hook, or look
+  them up in `profiles` in `SECURITY DEFINER` helpers.
+- **Decision:** Look them up (`private.my_org_id()`, `private.my_role()`). Claims would stay stale
+  until the token refreshes (up to 1 hour), so a deactivated member or a demoted admin would keep
+  access. The lookup is a primary-key read, wrapped in `(select …)` so Postgres runs it once per
+  query.
+
+## ADR-015 — Column-level privileges for self-service edits
+
+- **Date:** 2026-10-16 · **Status:** Accepted
+- **Decision:** RLS decides _which rows_ a user may update; column `GRANT`s decide _which columns_.
+  Users can update only their personal columns. Role, department and status change through
+  `admin_*` functions that check permissions and write the audit row in the same transaction.
+  Protects against a user sending `{ role: 'org_admin' }` straight to the API.
+
+## ADR-016 — Account lockout counters in Redis
+
+- **Date:** 2026-10-16 · **Status:** Accepted (implemented in slice 1e)
+- **Decision:** Failed sign-in counters and lockouts (5 failures → 15 minutes) live in Redis with a
+  TTL, not in a table: they expire on their own and need no clean-up job. Locally and in CI an
+  Upstash-compatible emulator container is used, so the same `@upstash/ratelimit` code runs offline.

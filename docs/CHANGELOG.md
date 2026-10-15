@@ -5,6 +5,17 @@ newest first.
 
 ## [Unreleased]
 
+### Added — Phase 1a: identity & tenancy database (2026-10-16)
+
+- Local Supabase stack (CLI + Docker) with invite-only auth settings and Mailpit for emails.
+- Migration `20261016000100_identity_and_tenancy.sql`: organizations, departments, profiles, invites,
+  audit logs; Row Level Security on every table; column-level privileges; admin functions for role,
+  department and status changes with last-admin protection; invite-only sign-up enforced by triggers;
+  append-only audit log.
+- Seed: Demo College with three departments and one demo account per role (local only).
+- 54 database tests (`npm run test:db`) proving RLS, invite rules and admin functions; CI now starts
+  Supabase and runs them.
+
 ## [0.1.0] — 2026-10-15 — Phase 0: Project setup & foundation
 
 The project was rebuilt from scratch on Next.js + Supabase following `CLAUDE.md`. The previous

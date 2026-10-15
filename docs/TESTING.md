@@ -6,7 +6,8 @@ A phase is complete only when all of these pass (`CLAUDE.md` §0.4). CI runs the
 pull request (`.github/workflows/ci.yml`).
 
 ```bash
-npm run typecheck && npm run lint && npm run test && npm run build && npm run test:e2e && npm run docs:check
+npx supabase start   # once; the database tests need the local stack
+npm run typecheck && npm run lint && npm run test && npm run test:db && npm run build && npm run test:e2e && npm run docs:check
 ```
 
 ## Suites
@@ -23,6 +24,18 @@ Runs in jsdom. `npm run test` (or `npm run test:watch`).
 | `empty-state.test.tsx`  | EmptyState renders title, description and action                                      |
 | `data-table.test.tsx`   | Rows, empty state, opt-in sorting (ascending → descending, `aria-sort`)               |
 | `docs-check.test.ts`    | The `docs:check` rules and its exit code                                              |
+
+### Database — Vitest against local Supabase (`tests/db/`)
+
+`npm run test:db`, with `npx supabase start` running. Global setup reads the URL and keys from
+`supabase status`. Tests sign in as **real users**, created through real invitations, and prove what
+each role can do. Each file creates its own uniquely named organizations, so runs never interfere.
+
+| File                      | Covers                                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rls.test.ts`             | Who sees which profiles (member / manager / org admin / super admin); self-edit limited to personal columns; no cross-org reads or writes; suspended orgs lose access; audit logs append-only; anonymous visitors see nothing |
+| `invites.test.ts`         | Sign-up refused without an invite; the invite sets org, role and department; expired / revoked / wrong-email / used-up / suspended-org invites refused; token not kept in metadata; who may create and revoke invites         |
+| `admin-functions.test.ts` | Role and department changes, deactivation (access ends immediately), soft delete, audit rows, last-admin protection, cross-org targets treated as not found                                                                   |
 
 ### End-to-end — Playwright (`tests/e2e/`)
 

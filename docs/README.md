@@ -18,11 +18,11 @@ affects (see `CLAUDE.md` §0.1), and `npm run docs:check` enforces the structure
 
 ## Phases
 
-| Phase | Document                                                    | Status   |
-| ----- | ----------------------------------------------------------- | -------- |
-| 0     | [Project setup & foundation](phases/phase-00-foundation.md) | Complete |
-| 1     | Authentication & account management                         | Next     |
-| 2–12  | See `CLAUDE.md` §4                                          | Planned  |
+| Phase | Document                                                       | Status      |
+| ----- | -------------------------------------------------------------- | ----------- |
+| 0     | [Project setup & foundation](phases/phase-00-foundation.md)    | Complete    |
+| 1     | [Authentication & account management](phases/phase-01-auth.md) | In Progress |
+| 2–12  | See `CLAUDE.md` §4                                             | Planned     |
 
 Progress and the current manual test list live in [`PROGRESS.md`](../PROGRESS.md) at the repository
 root.

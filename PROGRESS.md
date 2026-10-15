@@ -1,23 +1,23 @@
 # Progress
 
-Current phase: **Phase 0 — Project setup & foundation: complete (2026-10-15).**
-Next: **Phase 1 — Authentication & account management** (plan and data model need approval first).
+Current phase: **Phase 1 — Authentication & account management: in progress** (slice 1a done).
+Next: **slice 1b — Supabase clients and session handling**.
 
-| Phase | Theme                                  | Status   |
-| ----- | -------------------------------------- | -------- |
-| 0     | Project setup & foundation             | Complete |
-| 1     | Authentication & account management    | Next     |
-| 2     | Face enrollment                        | Planned  |
-| 3     | Face attendance (check-in / check-out) | Planned  |
-| 4     | Voice features                         | Planned  |
-| 5     | Member experience                      | Planned  |
-| 6     | Admin console                          | Planned  |
-| 7     | Feedback & support                     | Planned  |
-| 8     | Differentiating features               | Planned  |
-| 9     | Multi-language completion              | Planned  |
-| 10    | Mobile & PWA polish                    | Planned  |
-| 11    | Security & privacy hardening           | Planned  |
-| 12    | Deployment & documentation             | Planned  |
+| Phase | Theme                                  | Status      |
+| ----- | -------------------------------------- | ----------- |
+| 0     | Project setup & foundation             | Complete    |
+| 1     | Authentication & account management    | In Progress |
+| 2     | Face enrollment                        | Planned     |
+| 3     | Face attendance (check-in / check-out) | Planned     |
+| 4     | Voice features                         | Planned     |
+| 5     | Member experience                      | Planned     |
+| 6     | Admin console                          | Planned     |
+| 7     | Feedback & support                     | Planned     |
+| 8     | Differentiating features               | Planned     |
+| 9     | Multi-language completion              | Planned     |
+| 10    | Mobile & PWA polish                    | Planned     |
+| 11    | Security & privacy hardening           | Planned     |
+| 12    | Deployment & documentation             | Planned     |
 
 ## Phase 0
 
@@ -38,3 +38,14 @@ presets, shared components, responsive shell (sidebar, bottom bar, top bar), Eng
 
 See the checklist in [`docs/TESTING.md`](docs/TESTING.md#manual-qa-checklist--phase-0): themes,
 Hindi font rendering, phone layout and safe area, reduced motion, keyboard and screen reader.
+
+## Phase 1 (in progress)
+
+Plan and slice status: [`docs/phases/phase-01-auth.md`](docs/phases/phase-01-auth.md).
+
+**Slice 1a done:** schema, RLS, admin functions, invite-only sign-up, seed, 54 database tests.
+
+**Manual tests for 1a:**
+
+- [ ] `npx supabase db reset`, then open Studio (<http://127.0.0.1:54323>): Demo College, 3 departments and 5 profiles exist.
+- [ ] In Studio's SQL editor, `update audit_logs set action = 'x.y'` fails with "append-only".
