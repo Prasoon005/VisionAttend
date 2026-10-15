@@ -1,5 +1,10 @@
-pnpm-lock.yaml
-**/dist
-**/coverage
-apps/cv-service
-apps/api/src/generated
+.next
+out
+coverage
+playwright-report
+test-results
+node_modules
+package-lock.json
+next-env.d.ts
+# The build plan is the user's own document; never reformat it.
+CLAUDE.md
