@@ -13,6 +13,9 @@ const ACTION_LABELS: Record<string, string> = {
   'auth.password_changed': 'Password changed',
   'organization.create': 'Organization created',
   'organization.update': 'Organization updated',
+  'department.create': 'Department created',
+  'department.update': 'Department updated',
+  'department.delete': 'Department deleted',
 };
 
 /** Role-aware landing page. Sections appear only for users with the permission. */

@@ -6,3 +6,4 @@ export * from './pagination.js';
 export * from './auth.js';
 export * from './organizations.js';
 export * from './audit.js';
+export * from './departments.js';

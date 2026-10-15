@@ -2,6 +2,7 @@ import { createBrowserRouter, Link } from 'react-router';
 import { ChangePasswordPage } from '../features/auth/ChangePasswordPage';
 import { RedirectIfAuthenticated, RequireAuth, RequirePermission } from '../features/auth/guards';
 import { LoginPage } from '../features/auth/LoginPage';
+import { DepartmentsPage } from '../features/departments/DepartmentsPage';
 import { HomePage } from '../features/home/HomePage';
 import { OrganizationsPage } from '../features/organizations/OrganizationsPage';
 import { SystemStatusPage } from '../features/system-status/SystemStatusPage';
@@ -41,6 +42,14 @@ export const router = createBrowserRouter([
         element: (
           <RequirePermission permission="organization:manage">
             <OrganizationsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: 'departments',
+        element: (
+          <RequirePermission permission="department:write">
+            <DepartmentsPage />
           </RequirePermission>
         ),
       },

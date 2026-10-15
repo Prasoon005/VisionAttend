@@ -55,6 +55,16 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, req, res, _nex
     return;
   }
 
+  // Foreign key violation on delete (ON DELETE RESTRICT): the row is still in
+  // use. Services check first for a friendlier message; this covers the race.
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+    send(409, {
+      code: 'CONFLICT',
+      message: 'This record is still referenced by other records',
+    });
+    return;
+  }
+
   if (isHttpParserError(error) && error.status < 500) {
     const code = error.type === 'entity.parse.failed' ? 'INVALID_JSON' : 'BAD_REQUEST';
     send(error.status, { code, message: 'Malformed request body' });

@@ -119,6 +119,20 @@ Schemas: `packages/shared/src/{auth,organizations,audit,pagination}.ts`.
 | `GET /`       | `?page=&pageSize=` → the caller's organization's entries, newest first |
 | `GET /:id`    | One entry · `404` if it belongs to another organization                |
 
+## Implemented (Phase 3, in progress)
+
+All Phase 3 routes are tenant-scoped: the organization comes from the access token, and another
+organization's ids answer `404`.
+
+### Departments — `/api/v1/departments`
+
+| Method & path | Permission         | Body → response                                                                |
+| ------------- | ------------------ | ------------------------------------------------------------------------------ |
+| `GET /`       | `employee:read`    | `{ items: Department[] }` sorted by name (no pagination: short reference list) |
+| `POST /`      | `department:write` | `{ name, code? }` → `201 Department` · `409` duplicate name                    |
+| `PATCH /:id`  | `department:write` | any of `{ name, code }` (`code: ""` clears it) → `Department`                  |
+| `DELETE /:id` | `department:write` | `204` · `409 { details: { employeeCount } }` while employees belong to it      |
+
 ### CV service (internal network only)
 
 | Endpoint                | Auth              | Purpose                                      |
@@ -132,7 +146,6 @@ Every endpoint lists the permission it requires (see `packages/shared/src/permis
 
 | Phase | Method & path                                                   | Permission                                   |
 | ----- | --------------------------------------------------------------- | -------------------------------------------- |
-| 3     | `GET/POST /departments` · `PATCH/DELETE /departments/:id`       | `department:write` (write)                   |
 | 3     | `GET/POST /shifts` · `PATCH /shifts/:id`                        | `shift:write` (write)                        |
 | 3     | `GET/POST /holidays` · `DELETE /holidays/:id`                   | `holiday:write` (write)                      |
 | 3     | `GET/POST /employees` · `GET/PATCH /employees/:id`              | `employee:read` / `employee:write`           |

@@ -8,6 +8,7 @@ import { useAuth, useCan } from '../features/auth/AuthProvider';
 const NAV: { to: string; label: string; permission?: Permission }[] = [
   { to: '/', label: 'Home' },
   { to: '/platform/organizations', label: 'Organizations', permission: 'organization:manage' },
+  { to: '/departments', label: 'Departments', permission: 'department:write' },
   { to: '/status', label: 'System status', permission: 'platform:health' },
   { to: '/change-password', label: 'Password' },
 ];

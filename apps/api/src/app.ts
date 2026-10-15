@@ -16,6 +16,8 @@ import { createAuditRouter } from './modules/audit/audit.routes.js';
 import { AuditService } from './modules/audit/audit.service.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { AuthService } from './modules/auth/auth.service.js';
+import { createDepartmentsRouter } from './modules/departments/departments.routes.js';
+import { DepartmentsService } from './modules/departments/departments.service.js';
 import { createHealthRouter } from './modules/health/health.routes.js';
 import type { HealthService } from './modules/health/health.service.js';
 import { createOrganizationsRouter } from './modules/organizations/organizations.routes.js';
@@ -87,6 +89,10 @@ export function createApp(deps: AppDependencies): Express {
   v1.use('/auth', createAuthRouter(authService, authenticate, deps.rateLimiter));
   v1.use('/platform/organizations', createOrganizationsRouter(organizationsService, authenticate));
   v1.use('/audit-logs', createAuditRouter(new AuditLogRepository(deps.prisma), authenticate));
+  v1.use(
+    '/departments',
+    createDepartmentsRouter(new DepartmentsService(deps.prisma, audit), authenticate),
+  );
   app.use('/api/v1', v1);
 
   app.use(notFoundHandler);

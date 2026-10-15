@@ -10,6 +10,9 @@ export const AUDIT_ACTIONS = [
   'auth.password_changed',
   'organization.create',
   'organization.update',
+  'department.create',
+  'department.update',
+  'department.delete',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
